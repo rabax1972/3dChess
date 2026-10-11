@@ -99,8 +99,8 @@ export const APP_TEMPLATE = /* html */ `
     <h2>Nuova partita</h2>
     <fieldset>
       <legend>Modalità</legend>
-      <label class="radio"><input type="radio" name="mode" value="local" checked /> Due giocatori sullo stesso dispositivo</label>
-      <label class="radio"><input type="radio" name="mode" value="ai" /> Contro il computer</label>
+      <label class="radio"><input type="radio" name="mode" value="local" /> Due giocatori sullo stesso dispositivo</label>
+      <label class="radio"><input type="radio" name="mode" value="ai" checked /> Contro il computer</label>
     </fieldset>
     <fieldset class="ai-only">
       <legend>Giochi con</legend>

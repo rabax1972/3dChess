@@ -51,6 +51,8 @@ export class App {
     this.view.setAxesVisible(true);
     this.applyFilter();
     this.refresh();
+    // All'avvio si sceglie subito modalità e difficoltà; "Annulla" lascia la partita a due giocatori.
+    this.openNewGameDialog();
   }
 
   // ------------------------------------------------------------------ input sulla scacchiera
