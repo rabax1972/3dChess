@@ -30,38 +30,48 @@ export interface SetupDefinition {
 
 export const CLASSIC_BACK_RANK: readonly PieceType[] = [ROOK, KNIGHT, BISHOP, QUEEN, KING, BISHOP, KNIGHT, ROOK];
 
-/** Default: due set completi per giocatore, Bianco sui livelli 1-2, Nero sui livelli 7-8. */
-export const DOUBLE_SET: SetupDefinition = {
-  id: 'double',
-  name: 'Doppio set (default)',
-  description: '32 pezzi per parte: Bianco sui livelli 1-2, Nero sui livelli 7-8.',
+/** Default: un set per parte, entrambi sul livello più basso, come su una scacchiera classica. */
+export const CLASSIC_SET: SetupDefinition = {
+  id: 'classic',
+  name: 'Classico sul livello 1 (default)',
+  description: '16 pezzi per parte, Bianco e Nero entrambi sul livello 1.',
   backRankOrder: CLASSIC_BACK_RANK,
-  white: { levels: [1, 2], backRank: 1, pawnRank: 2 },
-  black: { levels: [7, 8], backRank: 8, pawnRank: 7 },
+  white: { levels: [1], backRank: 1, pawnRank: 2 },
+  black: { levels: [1], backRank: 8, pawnRank: 7 },
 };
 
-/** Variante rapida: un solo set per parte, sui livelli estremi. */
-export const SINGLE_SET: SetupDefinition = {
-  id: 'single',
-  name: 'Set singolo',
+/** Un set per parte sui livelli estremi: Bianco in basso, Nero in alto. */
+export const WHITE_BOTTOM_SET: SetupDefinition = {
+  id: 'white-bottom',
+  name: 'Bianco in basso, Nero in alto',
   description: '16 pezzi per parte: Bianco sul livello 1, Nero sul livello 8.',
   backRankOrder: CLASSIC_BACK_RANK,
   white: { levels: [1], backRank: 1, pawnRank: 2 },
   black: { levels: [8], backRank: 8, pawnRank: 7 },
 };
 
-/** Variante ravvicinata: un set per parte sui livelli centrali. */
-export const CENTER_SET: SetupDefinition = {
-  id: 'center',
-  name: 'Livelli centrali',
-  description: '16 pezzi per parte: Bianco sul livello 4, Nero sul livello 5.',
+/** Come sopra, a livelli invertiti: Nero in basso, Bianco in alto. */
+export const BLACK_BOTTOM_SET: SetupDefinition = {
+  id: 'black-bottom',
+  name: 'Nero in basso, Bianco in alto',
+  description: '16 pezzi per parte: Nero sul livello 1, Bianco sul livello 8.',
   backRankOrder: CLASSIC_BACK_RANK,
-  white: { levels: [4], backRank: 1, pawnRank: 2 },
-  black: { levels: [5], backRank: 8, pawnRank: 7 },
+  white: { levels: [8], backRank: 1, pawnRank: 2 },
+  black: { levels: [1], backRank: 8, pawnRank: 7 },
 };
 
-export const SETUPS: readonly SetupDefinition[] = [DOUBLE_SET, SINGLE_SET, CENTER_SET];
-export const DEFAULT_SETUP = DOUBLE_SET;
+/** Variante: due set completi per giocatore, Bianco sui livelli 1-2, Nero sui livelli 7-8. */
+export const DOUBLE_SET: SetupDefinition = {
+  id: 'double',
+  name: 'Doppio set',
+  description: '32 pezzi per parte: Bianco sui livelli 1-2, Nero sui livelli 7-8.',
+  backRankOrder: CLASSIC_BACK_RANK,
+  white: { levels: [1, 2], backRank: 1, pawnRank: 2 },
+  black: { levels: [7, 8], backRank: 8, pawnRank: 7 },
+};
+
+export const SETUPS: readonly SetupDefinition[] = [CLASSIC_SET, WHITE_BOTTOM_SET, BLACK_BOTTOM_SET, DOUBLE_SET];
+export const DEFAULT_SETUP = CLASSIC_SET;
 
 function armyPlacements(def: SetupDefinition, army: ArmyDefinition, color: Color): Placement[] {
   if (def.backRankOrder.length !== SIZE) throw new Error(`backRankOrder deve avere ${SIZE} pezzi`);

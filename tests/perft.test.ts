@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
-  CENTER_SET,
+  BLACK_BOTTOM_SET,
+  CLASSIC_SET,
   DOUBLE_SET,
   Position,
-  SINGLE_SET,
+  WHITE_BOTTOM_SET,
   createInitialPosition,
   fileOf,
   levelOf,
@@ -19,28 +20,38 @@ import { referenceLegal, referencePerft, stateFrom } from './reference';
 /**
  * Valori perft dello schieramento iniziale. perft(1) è ricavato a mano (vedi README):
  * doppio set = 32 pedoni + 28 cavalli + 12 torri + 26 alfieri + 26 regine + 6 re = 130.
- * set singolo = 16 + 14 + 14 + 28 + 28 + 4 = 104.
+ * Bianco in basso / Nero in alto = 16 + 14 + 14 + 28 + 28 + 4 = 104 (due caselle del re
+ * sono attaccate dai pezzi neri del livello 8); classico sul livello 1 = 104 + 2 = 106.
  * I valori più profondi sono confermati dal generatore di riferimento indipendente.
  */
 const KNOWN = {
+  classic: [1, 106, 11222, 1340848],
+  extremes: [1, 104, 10246],
   double: [1, 130, 16633],
-  single: [1, 104, 10246],
 };
 
 describe('perft', () => {
-  it('doppio set (default)', () => {
+  it('classico sul livello 1 (default)', () => {
+    const pos = createInitialPosition(CLASSIC_SET);
+    KNOWN.classic.forEach((n, d) => expect(perft(pos, d)).toBe(n));
+  }, 60_000);
+
+  it('Nero in basso e Bianco in basso sono simmetrici', () => {
+    for (const setup of [WHITE_BOTTOM_SET, BLACK_BOTTOM_SET]) {
+      const pos = createInitialPosition(setup);
+      KNOWN.extremes.forEach((n, d) => expect(perft(pos, d)).toBe(n));
+    }
+  });
+
+  it('doppio set', () => {
     const pos = createInitialPosition(DOUBLE_SET);
     KNOWN.double.forEach((n, d) => expect(perft(pos, d)).toBe(n));
   });
 
-  it('set singolo', () => {
-    const pos = createInitialPosition(SINGLE_SET);
-    KNOWN.single.forEach((n, d) => expect(perft(pos, d)).toBe(n));
-  });
-
   it('il generatore di riferimento conferma i valori', () => {
     expect(referencePerft(stateFrom(createInitialPosition(DOUBLE_SET)), 2)).toBe(KNOWN.double[2]);
-    expect(referencePerft(stateFrom(createInitialPosition(SINGLE_SET)), 2)).toBe(KNOWN.single[2]);
+    expect(referencePerft(stateFrom(createInitialPosition(CLASSIC_SET)), 2)).toBe(KNOWN.classic[2]);
+    expect(referencePerft(stateFrom(createInitialPosition(WHITE_BOTTOM_SET)), 2)).toBe(KNOWN.extremes[2]);
   });
 
   it('perft(3) del doppio set e posizione intatta dopo la ricerca', () => {
@@ -87,8 +98,9 @@ function randomPlayout(start: Position, plies: number, seed: number) {
 
 describe('confronto con il generatore di riferimento', () => {
   it.each([
-    ['single', SINGLE_SET, 1],
-    ['center', CENTER_SET, 2],
+    ['single', WHITE_BOTTOM_SET, 1],
+    ['classic', CLASSIC_SET, 2],
+    ['black-bottom', BLACK_BOTTOM_SET, 4],
     ['double', DOUBLE_SET, 3],
   ])('partite casuali (%s)', (_name, setup, seed) => {
     const start = createInitialPosition(setup);

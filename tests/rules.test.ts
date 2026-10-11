@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   BLACK,
+  DOUBLE_SET,
   FLAG_CASTLE,
   FLAG_EP,
   Game,
@@ -194,7 +195,7 @@ describe('Patte', () => {
 
 describe('Game: notazione, annulla e ripeti', () => {
   it('scrive le mosse con tre componenti', () => {
-    const g = new Game();
+    const g = new Game(DOUBLE_SET);
     const knight = parseMove(g.pos, 'Cb1.2 -> c3.2')!;
     expect(g.play(knight).notation).toBe('Cb1.2 -> c3.2');
     const pawn = parseMove(g.pos, 'e7.8 -> e5.8')!;
@@ -202,7 +203,7 @@ describe('Game: notazione, annulla e ripeti', () => {
   });
 
   it('annulla e ripete ripristinando la posizione', () => {
-    const g = new Game();
+    const g = new Game(DOUBLE_SET);
     const start = g.pos.key;
     g.play(parseMove(g.pos, 'Cb1.2 -> c3.2')!);
     const afterOne = g.pos.key;
@@ -219,7 +220,7 @@ describe('Game: notazione, annulla e ripeti', () => {
   });
 
   it('una nuova mossa cancella la lista da ripetere', () => {
-    const g = new Game();
+    const g = new Game(DOUBLE_SET);
     g.play(parseMove(g.pos, 'Cb1.2 -> c3.2')!);
     g.undo();
     g.play(parseMove(g.pos, 'a2.1 -> a3.1')!);
@@ -227,12 +228,12 @@ describe('Game: notazione, annulla e ripeti', () => {
   });
 
   it('rifiuta le mosse illegali', () => {
-    const g = new Game();
+    const g = new Game(DOUBLE_SET);
     expect(() => g.play(parseSquare('a1.1') | (parseSquare('a5.1') << 9))).toThrow();
   });
 
   it('registra il pezzo catturato e segna scacco e matto', () => {
-    const g = new Game();
+    const g = new Game(DOUBLE_SET);
     g.reset();
     g.pos = makePosition(['Rc3.3', 'Dh2.2'], ['Ra1.1', 'Cb2.1']);
     const rec = g.play(parseMove(g.pos, 'Dh2.2 -> b2.2')!);

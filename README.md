@@ -29,12 +29,15 @@ Serve Node 18 o successivo.
 
 ### Schieramento iniziale
 
-Quello di default ([src/engine/setup.ts](src/engine/setup.ts)) dà a ogni giocatore **due set completi** (32 pezzi):
+Quello di default ([src/engine/setup.ts](src/engine/setup.ts)) è **classico sul livello 1**: 16 pezzi per parte, tutti sul livello più basso del cubo, come su una scacchiera normale. Il Bianco ha i pezzi sulla traversa 1 e i pedoni sulla traversa 2, il Nero i pezzi sulla traversa 8 e i pedoni sulla traversa 7. Da lì i pezzi possono salire negli altri livelli.
 
-- il Bianco occupa i livelli 1 e 2, con i pezzi sulla traversa 1 e i pedoni sulla traversa 2;
-- il Nero occupa i livelli 7 e 8, con i pezzi sulla traversa 8 e i pedoni sulla traversa 7.
+Dalla finestra *Nuova partita* si possono scegliere anche:
 
-Sono disponibili anche due varianti: *Set singolo* (livelli 1 e 8) e *Livelli centrali* (livelli 4 e 5).
+- **Bianco in basso, Nero in alto**: Bianco sul livello 1, Nero sul livello 8;
+- **Nero in basso, Bianco in alto**: Nero sul livello 1, Bianco sul livello 8;
+- **Doppio set**: due set completi per parte (32 pezzi), Bianco sui livelli 1-2, Nero sui livelli 7-8.
+
+In tutti gli schieramenti i pedoni avanzano lungo l'asse y, cioè verso la traversa avversaria, indipendentemente dal livello.
 
 ### Movimento dei pezzi
 
@@ -57,7 +60,7 @@ L'alfiere conserva la parità di x+y+z, perché cambia sempre due coordinate di 
 - **En passant.** Dopo un doppio passo, la casella scavalcata diventa catturabile per una sola mossa. La cattura è possibile da qualsiasi pedone avversario che, con una delle sue 4 catture diagonali (x±1 oppure z±1), raggiunge quella casella. Il pedone catturato viene rimosso dalla casella in cui si trova. È la generalizzazione più diretta della regola classica: un pedone che passa "accanto" a un pedone nemico, sull'asse x o sull'asse z, può essere preso al varco.
 - **Arrocco.** Avviene sul piano del re: stesso livello, stessa traversa, lungo l'asse x, esattamente come in 2D. Re e torre non devono essersi mai mossi, le caselle tra loro devono essere libere, e il re non deve essere sotto scacco né attraversare o raggiungere caselle attaccate. Gli attacchi contano da qualsiasi direzione 3D, anche da altri livelli. Il re si sposta di due caselle verso la torre e la torre scavalca il re (`O-O` verso h, `O-O-O` verso a). Non esiste arrocco tra livelli diversi.
 - **Promozione.** Sull'ultima traversa (8 per il Bianco, 1 per il Nero), su qualsiasi livello. Si sceglie tra regina, torre, alfiere e cavallo.
-- **Più re per giocatore.** Con lo schieramento di default ogni giocatore ha due re, e **sono entrambi pezzi reali**. Una mossa è legale solo se non lascia *nessuno* dei propri re sotto scacco. È scacco quando almeno un re è attaccato, ed è scacco matto quando si è sotto scacco e non esiste una mossa legale. È la scelta più fedele alla regola "non si può lasciare il re sotto scacco". Rende anche possibili le forchette ai due re.
+- **Più re per giocatore.** Nello schieramento *Doppio set* ogni giocatore ha due re, e **sono entrambi pezzi reali**. Una mossa è legale solo se non lascia *nessuno* dei propri re sotto scacco. È scacco quando almeno un re è attaccato, ed è scacco matto quando si è sotto scacco e non esiste una mossa legale. È la scelta più fedele alla regola "non si può lasciare il re sotto scacco". Rende anche possibili le forchette ai due re.
 
 ### Fine della partita
 
@@ -153,10 +156,20 @@ Per pezzi aggiuntivi c'è un array `extra`. Basta aggiungere la definizione a `S
 
   | Schieramento | perft(1) | perft(2) | perft(3) |
   |---|---|---|---|
-  | Doppio set (default) | 130 | 16 633 | 2 377 864 |
-  | Set singolo | 104 | 10 246 | |
+  | Classico sul livello 1 (default) | 106 | 11 222 | 1 340 848 |
+  | Bianco in basso / Nero in basso | 104 | 10 246 | |
+  | Doppio set | 130 | 16 633 | 2 377 864 |
 
-  perft(1) è ricavato a mano. Per il doppio set:
+  perft(1) è ricavato a mano. Con Bianco in basso e Nero in alto il Bianco ha:
+  - pedoni: 8 × 2 = 16;
+  - cavalli: 7 + 7 = 14;
+  - torri: 7 + 7, verso l'alto, totale 14;
+  - alfieri: 14 + 14 = 28, inclusa la cattura dell'alfiere nero sulla diagonale y/z;
+  - regina: 28;
+  - re: 4, perché due delle sei caselle sul livello 2 sono attaccate da regina e alfiere neri del livello 8;
+  - totale 104.
+
+  Nel classico sul livello 1 quelle due caselle sono libere, quindi 104 + 2 = 106. Per il doppio set:
   - pedoni: 16 × 2 = 32;
   - cavalli: 6 + 6 sul livello 1, 8 + 8 sul livello 2, totale 28;
   - torri: 6 + 6, solo verso l'alto dal livello 2, totale 12;
