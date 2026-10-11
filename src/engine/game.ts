@@ -2,7 +2,7 @@ import { FLAG_EP, moveFlag, moveFrom, moveTo, type Move } from './move';
 import { moveToNotation } from './notation';
 import { Position } from './position';
 import { createInitialPosition, DEFAULT_SETUP, type SetupDefinition } from './setup';
-import { SIZE, pawnDirection, type Color, type GameStatus } from './types';
+import type { Color, GameStatus } from './types';
 
 export interface PlayedMove {
   move: Move;
@@ -56,7 +56,7 @@ export class Game {
     const from = moveFrom(m), to = moveTo(m);
     const piece = this.pos.board[from];
     const capturedSquare =
-      moveFlag(m) === FLAG_EP ? to - pawnDirection(this.pos.side) * SIZE : this.pos.board[to] !== 0 ? to : -1;
+      moveFlag(m) === FLAG_EP ? this.pos.epVictim : this.pos.board[to] !== 0 ? to : -1;
     const record: PlayedMove = {
       move: m,
       notation: moveToNotation(this.pos, m),

@@ -155,38 +155,73 @@ describe('Cavallo', () => {
 });
 
 describe('Pedone', () => {
+  // Pezzi amici sopra e sotto (d4.5 e d4.3) bloccano il passo verticale, per isolare quello lungo y.
+  const LID = ['d4.3', 'd4.5'];
+
   it('avanza di una casella lungo y', () => {
-    expect(targetsFrom(makePosition([CENTER], []), CENTER)).toEqual(['d5.4']);
-    expect(targetsFrom(makePosition([], [CENTER], -1), CENTER)).toEqual(['d3.4']);
+    expect(targetsFrom(makePosition([CENTER, ...LID], []), CENTER)).toEqual(['d5.4']);
+    expect(targetsFrom(makePosition([], [CENTER, ...LID], -1), CENTER)).toEqual(['d3.4']);
   });
 
   it('alla prima mossa può avanzare di due se il percorso è libero', () => {
-    expect(targetsFrom(makePosition(['d2.3!'], []), 'd2.3')).toEqual(['d3.3', 'd4.3']);
-    expect(targetsFrom(makePosition(['d2.3!', 'd4.3'], []), 'd2.3')).toEqual(['d3.3']);
-    expect(targetsFrom(makePosition(['d2.3!'], ['d3.3']), 'd2.3')).toEqual([]);
+    const lid = ['d2.2', 'd2.4'];
+    expect(targetsFrom(makePosition(['d2.3!', ...lid], []), 'd2.3')).toEqual(['d3.3', 'd4.3']);
+    expect(targetsFrom(makePosition(['d2.3!', 'd4.3', ...lid], []), 'd2.3')).toEqual(['d3.3']);
+    expect(targetsFrom(makePosition(['d2.3!', ...lid], ['d3.3']), 'd2.3')).toEqual([]);
+  });
+
+  it('sale o scende di un livello se la cella è libera', () => {
+    expect(targetsFrom(makePosition([CENTER], []), CENTER)).toEqual(['d4.3', 'd4.5', 'd5.4']);
+    expect(targetsFrom(makePosition([], [CENTER], -1), CENTER)).toEqual(['d3.4', 'd4.3', 'd4.5']);
+    // Bloccato sopra da un avversario: niente cattura in verticale.
+    expect(targetsFrom(makePosition([CENTER, 'd5.4'], ['d4.5']), CENTER)).toEqual(['d4.3']);
+    // Ai bordi del cubo resta una sola direzione verticale.
+    expect(targetsFrom(makePosition(['d4.1', 'd5.1'], []), 'd4.1')).toEqual(['d4.2']);
+    expect(targetsFrom(makePosition(['d4.8', 'd5.8'], []), 'd4.8')).toEqual(['d4.7']);
+  });
+
+  it('alla prima mossa può salire o scendere di due livelli se il percorso è libero', () => {
+    expect(targetsFrom(makePosition(['d2.4!', 'd3.4'], []), 'd2.4')).toEqual(['d2.2', 'd2.3', 'd2.5', 'd2.6']);
+    expect(targetsFrom(makePosition(['d2.4!', 'd3.4', 'd2.6'], ['d2.2']), 'd2.4')).toEqual(['d2.3', 'd2.5']);
+    // Dopo essersi mosso non può più fare il doppio passo.
+    expect(targetsFrom(makePosition(['d2.4', 'd3.4'], []), 'd2.4')).toEqual(['d2.3', 'd2.5']);
+  });
+
+  it('il passo verticale non azzera il contatore delle 50 mosse, l’avanzamento sì', () => {
+    const pos = makePosition(['Ra1.1', 'd4.4'], ['Rh8.8']);
+    pos.halfmove = 10;
+    pos.makeMove(movesFrom(pos, 'd4.4').find((m) => moveTo(m) === parseSquare('d4.5'))!);
+    expect(pos.halfmove).toBe(11);
+    pos.unmakeMove();
+    pos.makeMove(movesFrom(pos, 'd4.4').find((m) => moveTo(m) === parseSquare('d5.4'))!);
+    expect(pos.halfmove).toBe(0);
   });
 
   it('cattura in diagonale avanti su x e su z (4 catture)', () => {
-    const pos = makePosition([CENTER], ['c5.4', 'e5.4', 'd5.3', 'd5.5', 'e5.5', 'c3.4']);
+    const pos = makePosition([CENTER, ...LID], ['c5.4', 'e5.4', 'd5.3', 'd5.5', 'e5.5', 'c3.4']);
     expect(targetsFrom(pos, CENTER)).toEqual(['c5.4', 'd5.3', 'd5.5', 'd5.4', 'e5.4'].sort());
   });
 
   it('non cattura in avanti dritto né i propri pezzi', () => {
-    const pos = makePosition([CENTER, 'c5.4'], ['d5.4']);
+    const pos = makePosition([CENTER, 'c5.4', ...LID], ['d5.4']);
     expect(targetsFrom(pos, CENTER)).toEqual([]);
   });
 
   it('il pedone nero cattura verso y decrescente', () => {
-    const pos = makePosition(['c3.4', 'd3.5'], [CENTER], -1);
+    const pos = makePosition(['c3.4', 'd3.5'], [CENTER, ...LID], -1);
     expect(targetsFrom(pos, CENTER)).toEqual(['c3.4', 'd3.4', 'd3.5']);
   });
 });
 
 describe('Promozione', () => {
+  const toRank8 = (pos: ReturnType<typeof makePosition>, from: string, to: string) =>
+    movesFrom(pos, from).filter((m) => moveTo(m) === parseSquare(to));
+
   it('genera le 4 scelte sull’ultima traversa', () => {
     const pos = makePosition(['a7.1'], []);
-    const promos = movesFrom(pos, 'a7.1').map(movePromo).sort();
-    expect(promos).toEqual([QUEEN, ROOK, BISHOP, KNIGHT].sort());
+    expect(toRank8(pos, 'a7.1', 'a8.1').map(movePromo).sort()).toEqual([QUEEN, ROOK, BISHOP, KNIGHT].sort());
+    // Il passo verticale sulla traversa 7 non promuove.
+    expect(toRank8(pos, 'a7.1', 'a7.2').map(movePromo)).toEqual([0]);
   });
 
   it('sostituisce il pedone con il pezzo scelto, anche catturando', () => {
@@ -202,6 +237,6 @@ describe('Promozione', () => {
 
   it('il nero promuove sulla traversa 1', () => {
     const pos = makePosition([], ['h2.8'], -1);
-    expect(movesFrom(pos, 'h2.8').map(movePromo)).toHaveLength(4);
+    expect(toRank8(pos, 'h2.8', 'h1.8').map(movePromo)).toHaveLength(4);
   });
 });

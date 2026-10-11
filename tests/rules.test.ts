@@ -40,6 +40,23 @@ describe('En passant', () => {
     expect(pos.board[sq('d5.5')]).toBe(0);
   });
 
+  it('cattura dopo un doppio passo verticale, rimuovendo il pedone dal suo livello', () => {
+    // Il nero scende da d6.6 a d6.4 scavalcando d6.5; il bianco in d5.4 cattura su d6.5 (z+1).
+    const pos = makePosition(['Ra1.1', 'd5.4', 'd5.5'], ['Rh8.8', 'd6.6!', 'd7.6'], BLACK);
+    pos.makeMove(parseMove(pos, 'd6.6 -> d6.4')!);
+    expect(pos.ep).toBe(sq('d6.5'));
+    expect(pos.epVictim).toBe(sq('d6.4'));
+    const ep = movesFrom(pos, 'd5.4').find((m) => moveFlag(m) === FLAG_EP)!;
+    expect(moveTo(ep)).toBe(sq('d6.5'));
+    const key = pos.key;
+    pos.makeMove(ep);
+    expect(pos.board[sq('d6.4')]).toBe(0);
+    expect(pos.board[sq('d6.5')]).toBe(PAWN);
+    pos.unmakeMove();
+    expect(pos.board[sq('d6.4')]).toBe(-PAWN);
+    expect(pos.key).toBe(key);
+  });
+
   it('è possibile solo nella mossa immediatamente successiva', () => {
     const pos = makePosition(['Ra1.1', 'd5.4'], ['Rh8.8', 'e7.4!'], BLACK);
     pos.makeMove(parseMove(pos, 'e7.4 -> e5.4')!);

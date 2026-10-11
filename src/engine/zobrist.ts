@@ -31,6 +31,9 @@ export const Z_VIRGIN_HI = fill(CELLS, HI_MASK);
 export const Z_VIRGIN_LO = fill(CELLS);
 export const Z_EP_HI = fill(CELLS, HI_MASK);
 export const Z_EP_LO = fill(CELLS);
+/** Casella del pedone catturabile en passant (dopo un doppio passo lungo y o lungo z). */
+export const Z_EPV_HI = fill(CELLS, HI_MASK);
+export const Z_EPV_LO = fill(CELLS);
 export const Z_SIDE_HI = rand() & HI_MASK;
 export const Z_SIDE_LO = rand() | 0;
 

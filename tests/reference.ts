@@ -14,7 +14,8 @@ interface Cell {
 interface State {
   cells: (Cell | null)[];
   side: number;
-  ep: V | null;
+  /** Casella scavalcata dal doppio passo e casella del pedone che lo ha fatto. */
+  ep: { target: V; victim: V } | null;
 }
 
 const N = 8;
@@ -38,7 +39,8 @@ export function stateFrom(pos: Position): State {
     const p = pos.board[s];
     cells.push(p ? { t: Math.abs(p), c: Math.sign(p), v: pos.virgin[s] === 1 } : null);
   }
-  return { cells, side: pos.side, ep: pos.ep >= 0 ? [fileOf(pos.ep), rankOf(pos.ep), levelOf(pos.ep)] : null };
+  const v = (s: number): V => [fileOf(s), rankOf(s), levelOf(s)];
+  return { cells, side: pos.side, ep: pos.ep >= 0 ? { target: v(pos.ep), victim: v(pos.epVictim) } : null };
 }
 
 const at = (st: State, x: number, y: number, z: number) => st.cells[id(x, y, z)];
@@ -76,7 +78,7 @@ interface RefMove {
   from: V;
   to: V;
   promo: number;
-  ep?: boolean;
+  ep?: V; // pedone catturato en passant
   castleRook?: V;
   double?: boolean;
 }
@@ -115,12 +117,19 @@ function pseudo(st: State): RefMove[] {
         add([x, Y, z]);
         if (p.v && inside(x, Y + us, z) && !at(st, x, Y + us, z)) add([x, Y + us, z], { double: true });
       }
+      // Passo verticale (su o giù), doppio alla prima mossa.
+      for (const dz of [1, -1]) {
+        if (!inside(x, y, z + dz) || at(st, x, y, z + dz)) continue;
+        out.push({ from, to: [x, y, z + dz], promo: 0 });
+        if (p.v && inside(x, y, z + 2 * dz) && !at(st, x, y, z + 2 * dz))
+          out.push({ from, to: [x, y, z + 2 * dz], promo: 0, double: true });
+      }
       for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
         const X = x + dx, Z = z + dz;
         if (!inside(X, Y, Z)) continue;
         const q = at(st, X, Y, Z);
         if (q && q.c !== us) add([X, Y, Z]);
-        else if (!q && st.ep && st.ep[0] === X && st.ep[1] === Y && st.ep[2] === Z) add([X, Y, Z], { ep: true });
+        else if (!q && st.ep && st.ep.target.join() === [X, Y, Z].join()) add([X, Y, Z], { ep: st.ep.victim });
       }
     }
     if (p.t === 6 && p.v && !attacked(st, x, y, z, -us)) {
@@ -144,14 +153,15 @@ function apply(st: State, m: RefMove): State {
   const [fx, fy, fz] = m.from, [tx, ty, tz] = m.to;
   const piece = cells[id(fx, fy, fz)]!;
   cells[id(fx, fy, fz)] = null;
-  if (m.ep) cells[id(tx, fy, tz)] = null;
+  if (m.ep) cells[id(m.ep[0], m.ep[1], m.ep[2])] = null;
   cells[id(tx, ty, tz)] = { t: m.promo || piece.t, c: piece.c, v: false };
   if (m.castleRook) {
     const [rx, ry, rz] = m.castleRook;
     cells[id(rx, ry, rz)] = null;
     cells[id(fx + Math.sign(tx - fx), fy, fz)] = { t: 4, c: piece.c, v: false };
   }
-  return { cells, side: -st.side, ep: m.double ? [fx, fy + piece.c, fz] : null };
+  const mid: V = [(fx + tx) / 2, (fy + ty) / 2, (fz + tz) / 2];
+  return { cells, side: -st.side, ep: m.double ? { target: mid, victim: [tx, ty, tz] } : null };
 }
 
 function kingsSafe(st: State, color: number): boolean {

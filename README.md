@@ -48,7 +48,7 @@ In tutti gli schieramenti i pedoni avanzano lungo l'asse y, cioè verso la trave
 | Regina | torre + alfiere + diagonali che cambiano **tutte e tre** le coordinate | 26 |
 | Re | una casella in una qualsiasi direzione adiacente | 26 |
 | Cavallo | salto (±2, ±1, 0) in ogni permutazione degli assi; ignora i pezzi in mezzo | 24 |
-| Pedone | avanza lungo y verso la traversa avversaria; cattura in diagonale in avanti: y+1 combinato con x±1 oppure z±1 | 1 (+1) / 4 catture |
+| Pedone | avanza lungo y verso la traversa avversaria, oppure sale o scende di un livello lungo z; cattura in diagonale in avanti: y+1 combinato con x±1 oppure z±1 | 3 (+3 alla prima mossa) / 4 catture |
 
 Nessun pezzo, tranne il cavallo, può attraversare altri pezzi. I pezzi che scorrono si fermano davanti al primo pezzo e possono catturarlo se è avversario.
 
@@ -56,8 +56,9 @@ L'alfiere conserva la parità di x+y+z, perché cambia sempre due coordinate di 
 
 ### Regole speciali (scelte di design)
 
-- **Doppio passo del pedone.** Alla *prima mossa* del pedone, se le due caselle davanti sono libere. "Prima mossa" è tracciata con un flag per pezzo ("mai mosso"), non con la traversa di partenza, così funziona con qualsiasi schieramento.
-- **En passant.** Dopo un doppio passo, la casella scavalcata diventa catturabile per una sola mossa. La cattura è possibile da qualsiasi pedone avversario che, con una delle sue 4 catture diagonali (x±1 oppure z±1), raggiunge quella casella. Il pedone catturato viene rimosso dalla casella in cui si trova. È la generalizzazione più diretta della regola classica: un pedone che passa "accanto" a un pedone nemico, sull'asse x o sull'asse z, può essere preso al varco.
+- **Passo verticale del pedone.** Oltre ad avanzare lungo y, il pedone può salire o scendere di un livello (asse z) se la cella è libera. In verticale non cattura e non promuove: la promozione avviene solo raggiungendo l'ultima traversa.
+- **Doppio passo del pedone.** Alla *prima mossa* il pedone può avanzare di due caselle lungo y, oppure salire o scendere di due livelli lungo z, se il percorso è libero. "Prima mossa" è tracciata con un flag per pezzo ("mai mosso"), non con la traversa di partenza, così funziona con qualsiasi schieramento.
+- **En passant.** Dopo un doppio passo, lungo y oppure in verticale, la casella scavalcata diventa catturabile per una sola mossa. La cattura è possibile da qualsiasi pedone avversario che, con una delle sue 4 catture diagonali (x±1 oppure z±1), raggiunge quella casella. Il pedone catturato viene rimosso dalla casella in cui si trova, che dopo un doppio passo verticale è su un altro livello rispetto alla casella scavalcata. È la generalizzazione più diretta della regola classica: un pedone che passa "accanto" a un pedone nemico, sull'asse x o sull'asse z, può essere preso al varco.
 - **Arrocco.** Avviene sul piano del re: stesso livello, stessa traversa, lungo l'asse x, esattamente come in 2D. Re e torre non devono essersi mai mossi, le caselle tra loro devono essere libere, e il re non deve essere sotto scacco né attraversare o raggiungere caselle attaccate. Gli attacchi contano da qualsiasi direzione 3D, anche da altri livelli. Il re si sposta di due caselle verso la torre e la torre scavalca il re (`O-O` verso h, `O-O-O` verso a). Non esiste arrocco tra livelli diversi.
 - **Promozione.** Sull'ultima traversa (8 per il Bianco, 1 per il Nero), su qualsiasi livello. Si sceglie tra regina, torre, alfiere e cavallo.
 - **Più re per giocatore.** Nello schieramento *Doppio set* ogni giocatore ha due re, e **sono entrambi pezzi reali**. Una mossa è legale solo se non lascia *nessuno* dei propri re sotto scacco. È scacco quando almeno un re è attaccato, ed è scacco matto quando si è sotto scacco e non esiste una mossa legale. È la scelta più fedele alla regola "non si può lasciare il re sotto scacco". Rende anche possibili le forchette ai due re.
@@ -67,7 +68,7 @@ L'alfiere conserva la parità di x+y+z, perché cambia sempre due coordinate di 
 - Scacco matto e stallo.
 - **Patta** in tre casi:
   - **ripetizione tripla**: stessa posizione con stesso giocatore al tratto, stessi diritti d'arrocco e stessa casella en passant, riconosciuta con hash Zobrist;
-  - **regola delle 50 mosse**: 100 semimosse senza catture né mosse di pedone;
+  - **regola delle 50 mosse**: 100 semimosse senza catture né avanzamenti di pedone lungo y. Il passo verticale del pedone non azzera il contatore: è reversibile, perché il pedone può risalire o riscendere, e altrimenti un pedone che fa su e giù potrebbe allungare la partita all'infinito senza far scattare la ripetizione;
   - **materiale insufficiente**: niente pedoni, torri o regine, e al massimo un pezzo minore in tutto, oppure solo alfieri tutti sullo stesso colore di cella. È una scelta prudente: in 3D il re ha 26 vie di fuga, quindi nessun materiale "minore" è in grado di forzare il matto.
 
 ## Interfaccia
@@ -156,27 +157,27 @@ Per pezzi aggiuntivi c'è un array `extra`. Basta aggiungere la definizione a `S
 
   | Schieramento | perft(1) | perft(2) | perft(3) |
   |---|---|---|---|
-  | Classico sul livello 1 (default) | 106 | 11 222 | 1 340 848 |
-  | Bianco in basso / Nero in basso | 104 | 10 246 | |
-  | Doppio set | 130 | 16 633 | 2 377 864 |
+  | Classico sul livello 1 (default) | 122 | 14 870 | 1 988 984 |
+  | Bianco in basso / Nero in basso | 120 | 13 748 | |
+  | Doppio set | 146 | 21 015 | |
 
   perft(1) è ricavato a mano. Con Bianco in basso e Nero in alto il Bianco ha:
-  - pedoni: 8 × 2 = 16;
+  - pedoni: 8 × 4 = 32, cioè uno o due passi lungo y e uno o due livelli verso l'alto;
   - cavalli: 7 + 7 = 14;
   - torri: 7 + 7, verso l'alto, totale 14;
   - alfieri: 14 + 14 = 28, inclusa la cattura dell'alfiere nero sulla diagonale y/z;
   - regina: 28;
   - re: 4, perché due delle sei caselle sul livello 2 sono attaccate da regina e alfiere neri del livello 8;
-  - totale 104.
+  - totale 120.
 
-  Nel classico sul livello 1 quelle due caselle sono libere, quindi 104 + 2 = 106. Per il doppio set:
-  - pedoni: 16 × 2 = 32;
+  Nel classico sul livello 1 quelle due caselle sono libere, quindi 120 + 2 = 122. Per il doppio set:
+  - pedoni: 8 × 2 sul livello 1, che hanno sopra i pedoni del livello 2, più 8 × 4 sul livello 2, totale 48;
   - cavalli: 6 + 6 sul livello 1, 8 + 8 sul livello 2, totale 28;
   - torri: 6 + 6, solo verso l'alto dal livello 2, totale 12;
   - alfieri: 13 + 13 dal livello 2, totale 26;
   - regina del livello 2: 26;
   - re del livello 2: 6 caselle sul livello 3;
-  - totale 130. I pezzi del livello 1 sono tutti bloccati.
+  - totale 146. Gli altri pezzi del livello 1 sono tutti bloccati.
 
   I valori più profondi sono confermati da un **generatore di riferimento indipendente** ([tests/reference.ts](tests/reference.ts)), scritto in modo volutamente ingenuo. Lo stesso generatore viene confrontato mossa per mossa con quello veloce lungo partite pseudo-casuali su tutti gli schieramenti. Un ultimo controllo verifica che make/unmake ripristini scacchiera, diritti e hash.
 - **IA** ([tests/ai.test.ts](tests/ai.test.ts)): matto in una, cattura di un pezzo indifeso, rifiuto di uno scambio perdente, rispetto del limite di tempo e posizione intatta dopo la ricerca.

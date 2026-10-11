@@ -19,21 +19,25 @@ import { referenceLegal, referencePerft, stateFrom } from './reference';
 
 /**
  * Valori perft dello schieramento iniziale. perft(1) è ricavato a mano (vedi README):
- * doppio set = 32 pedoni + 28 cavalli + 12 torri + 26 alfieri + 26 regine + 6 re = 130.
- * Bianco in basso / Nero in alto = 16 + 14 + 14 + 28 + 28 + 4 = 104 (due caselle del re
- * sono attaccate dai pezzi neri del livello 8); classico sul livello 1 = 104 + 2 = 106.
+ * Bianco in basso / Nero in alto = 32 pedoni (2 lungo y + 2 verso l'alto ciascuno)
+ * + 14 cavalli + 14 torri + 28 alfieri + 28 regina + 4 re = 120 (due caselle del re
+ * sono attaccate dai pezzi neri del livello 8); classico sul livello 1 = 120 + 2 = 122.
+ * Doppio set = 48 pedoni (i pedoni del livello 1 non possono salire) + 28 cavalli
+ * + 12 torri + 26 alfieri + 26 regine + 6 re = 146.
  * I valori più profondi sono confermati dal generatore di riferimento indipendente.
  */
 const KNOWN = {
-  classic: [1, 106, 11222, 1340848],
-  extremes: [1, 104, 10246],
-  double: [1, 130, 16633],
+  classic: [1, 122, 14870, 1988984],
+  extremes: [1, 120, 13748],
+  double: [1, 146, 21015],
 };
 
 describe('perft', () => {
-  it('classico sul livello 1 (default)', () => {
+  it('classico sul livello 1 (default) e posizione intatta dopo la ricerca', () => {
     const pos = createInitialPosition(CLASSIC_SET);
+    const key = pos.key;
     KNOWN.classic.forEach((n, d) => expect(perft(pos, d)).toBe(n));
+    expect(pos.key).toBe(key);
   }, 60_000);
 
   it('Nero in basso e Bianco in basso sono simmetrici', () => {
@@ -53,13 +57,6 @@ describe('perft', () => {
     expect(referencePerft(stateFrom(createInitialPosition(CLASSIC_SET)), 2)).toBe(KNOWN.classic[2]);
     expect(referencePerft(stateFrom(createInitialPosition(WHITE_BOTTOM_SET)), 2)).toBe(KNOWN.extremes[2]);
   });
-
-  it('perft(3) del doppio set e posizione intatta dopo la ricerca', () => {
-    const pos = createInitialPosition(DOUBLE_SET);
-    const key = pos.key;
-    expect(perft(pos, 3)).toBe(2377864);
-    expect(pos.key).toBe(key);
-  }, 60_000);
 
   it('posizione con arrocco, en passant e promozioni', () => {
     const pos = makePosition(

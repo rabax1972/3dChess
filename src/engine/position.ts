@@ -30,6 +30,7 @@ import {
   KING,
   KNIGHT,
   PAWN,
+  PLANE,
   PROMOTION_PIECES,
   QUEEN,
   ROOK,
@@ -49,6 +50,8 @@ import {
 import {
   Z_EP_HI,
   Z_EP_LO,
+  Z_EPV_HI,
+  Z_EPV_LO,
   Z_PIECE_HI,
   Z_PIECE_LO,
   Z_SIDE_HI,
@@ -70,6 +73,7 @@ interface Undo {
   capSq: number;
   rookFrom: number;
   ep: number;
+  epVictim: number;
   halfmove: number;
   hi: number;
   lo: number;
@@ -81,6 +85,8 @@ export interface PositionSnapshot {
   virgin: number[];
   side: Color;
   ep: number;
+  /** Casella del pedone catturabile en passant (-1 se nessuno). Facoltativa per compatibilità. */
+  epVictim?: number;
   halfmove: number;
   fullmove: number;
   history: number[];
@@ -99,7 +105,10 @@ export class Position {
   board = new Int8Array(CELLS);
   virgin = new Uint8Array(CELLS);
   side: Color = WHITE;
+  /** Casella scavalcata dall'ultimo doppio passo (bersaglio dell'en passant), -1 se nessuna. */
   ep = -1;
+  /** Casella del pedone che ha fatto il doppio passo e che l'en passant cattura. */
+  epVictim = -1;
   halfmove = 0;
   fullmove = 1;
   hi = 0;
@@ -156,6 +165,7 @@ export class Position {
     pos.virgin.set(snap.virgin);
     pos.side = snap.side;
     pos.ep = snap.ep;
+    pos.epVictim = snap.epVictim ?? (snap.ep >= 0 ? snap.ep + (snap.side === WHITE ? -SIZE : SIZE) : -1);
     pos.halfmove = snap.halfmove;
     pos.fullmove = snap.fullmove;
     pos.history = snap.history.slice();
@@ -169,6 +179,7 @@ export class Position {
       virgin: Array.from(this.virgin),
       side: this.side,
       ep: this.ep,
+      epVictim: this.epVictim,
       halfmove: this.halfmove,
       fullmove: this.fullmove,
       history: this.history.slice(),
@@ -200,8 +211,8 @@ export class Position {
       }
     }
     if (this.ep >= 0) {
-      hi ^= Z_EP_HI[this.ep];
-      lo ^= Z_EP_LO[this.ep];
+      hi ^= Z_EP_HI[this.ep] ^ Z_EPV_HI[this.epVictim];
+      lo ^= Z_EP_LO[this.ep] ^ Z_EPV_LO[this.epVictim];
     }
     if (this.side === BLACK) {
       hi ^= Z_SIDE_HI;
@@ -316,6 +327,20 @@ export class Position {
         const ny2 = ny + pawnDirection(us);
         if (!capturesOnly && this.virgin[s] && ny2 >= 0 && ny2 < SIZE && b[one + step] === 0)
           out.push(encodeMove(s, one + step, 0, FLAG_DOUBLE));
+      }
+    }
+    // Passo verticale: un livello su o giù se libero, due alla prima mossa se il percorso è libero.
+    if (!capturesOnly) {
+      const z = levelOf(s);
+      for (const dz of [-1, 1]) {
+        const z1 = z + dz;
+        if (z1 < 0 || z1 >= SIZE) continue;
+        const one = s + dz * PLANE;
+        if (b[one] !== 0) continue;
+        out.push(encodeMove(s, one));
+        const z2 = z1 + dz;
+        if (this.virgin[s] && z2 >= 0 && z2 < SIZE && b[one + dz * PLANE] === 0)
+          out.push(encodeMove(s, one + dz * PLANE, 0, FLAG_DOUBLE));
       }
     }
     const caps = PAWN_CAPTURES[colorIndex(us)][s];
@@ -443,6 +468,7 @@ export class Position {
       capSq: -1,
       rookFrom: -1,
       ep: this.ep,
+      epVictim: this.epVictim,
       halfmove: this.halfmove,
       hi: this.hi,
       lo: this.lo,
@@ -450,13 +476,15 @@ export class Position {
     };
     this.history.push(this.key);
 
+    const epVictim = this.epVictim;
     if (this.ep >= 0) {
-      this.hi ^= Z_EP_HI[this.ep];
-      this.lo ^= Z_EP_LO[this.ep];
+      this.hi ^= Z_EP_HI[this.ep] ^ Z_EPV_HI[this.epVictim];
+      this.lo ^= Z_EP_LO[this.ep] ^ Z_EPV_LO[this.epVictim];
       this.ep = -1;
+      this.epVictim = -1;
     }
 
-    const capSq = flag === FLAG_EP ? to - pawnDirection(us) * SIZE : b[to] !== 0 ? to : -1;
+    const capSq = flag === FLAG_EP ? epVictim : b[to] !== 0 ? to : -1;
     if (capSq >= 0) {
       rec.captured = b[capSq];
       rec.capSq = capSq;
@@ -495,12 +523,17 @@ export class Position {
       this.xorPiece(rook, rookTo);
       this.clearVirgin(r, rec.virginCleared);
     } else if (flag === FLAG_DOUBLE) {
-      this.ep = from + pawnDirection(us) * SIZE;
-      this.hi ^= Z_EP_HI[this.ep];
-      this.lo ^= Z_EP_LO[this.ep];
+      // Vale sia per il doppio passo lungo y sia per quello verticale lungo z.
+      this.ep = (from + to) / 2;
+      this.epVictim = to;
+      this.hi ^= Z_EP_HI[this.ep] ^ Z_EPV_HI[to];
+      this.lo ^= Z_EP_LO[this.ep] ^ Z_EPV_LO[to];
     }
 
-    this.halfmove = Math.abs(piece) === PAWN || capSq >= 0 ? 0 : this.halfmove + 1;
+    // Solo catture e avanzamenti dei pedoni lungo y sono irreversibili: il passo verticale
+    // può essere annullato risalendo/riscendendo, quindi non azzera il contatore.
+    const pawnAdvance = Math.abs(piece) === PAWN && rankOf(to) !== rankOf(from);
+    this.halfmove = pawnAdvance || capSq >= 0 ? 0 : this.halfmove + 1;
     if (us === BLACK) this.fullmove++;
     this.side = (-us) as Color;
     this.hi ^= Z_SIDE_HI;
@@ -536,6 +569,7 @@ export class Position {
     }
     for (const s of rec.virginCleared) this.virgin[s] = 1;
     this.ep = rec.ep;
+    this.epVictim = rec.epVictim;
     this.halfmove = rec.halfmove;
     this.hi = rec.hi;
     this.lo = rec.lo;
